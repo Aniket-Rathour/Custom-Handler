@@ -12,7 +12,7 @@ func testreturn(conn net.Conn , k map[string]string){
 	responseBody := "aaji mera kadddu hai ye  "
 	// println(responseBody)
 	bodyLength :=  len(responseBody)
-	fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\n"+
+	fmt.Fprintf(conn, "HTTP/1.1 500 OK\r\n"+
 		"Content-Type: text/plain; charset=utf-8\r\n"+
 		"Content-Length: %d\r\n"+
 		"\r\n"+
@@ -24,7 +24,7 @@ func testreturn1(conn net.Conn , id map[string]string){
 	println("so the name is " ,id["id"] )
 	// println(responseBody)
 	bodyLength :=  len(responseBody)
-	fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\n"+
+	fmt.Fprintf(conn, "HTTP/1.1 500 OK\r\n"+
 		"Content-Type: text/plain; charset=utf-8\r\n"+
 		"Content-Length: %d\r\n"+
 		"\r\n"+
@@ -80,13 +80,39 @@ func function1(conn net.Conn ,wg *sync.WaitGroup , r *router){
 
 	HandlerFunc , id :=  r.search(method , path)
 	if HandlerFunc != nil {
-		HandlerFunc(conn , id)
+		newfunc := auth(HandlerFunc)
+		new2func := recovery(newfunc)
+		new2func(conn , id)
 	}else{
 		fmt.Fprintf(conn, "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found")
 	}
 	
-
 }
+
+func recovery(next HandlerFunc) HandlerFunc{
+	return func(conn net.Conn , parmas map[string]string){
+
+		defer func(){
+			if r := recover(); r != nil{
+				println("recover from panic ")
+				return
+			}
+		}()
+		next(conn , parmas)
+	}
+}
+func auth(next HandlerFunc) HandlerFunc {
+	return func(conn net.Conn , parmas map[string]string) {
+		for range 1000{
+			print("")
+		}
+
+		next(conn , parmas)
+	}
+}
+
+
+
 func (r *router) search(method string , path []string)  (HandlerFunc , map[string]string) {
 	if r.root == nil {
 		return nil ,nil
