@@ -2,16 +2,22 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 )
 func testreturn(conn net.Conn , k map[string]string){
 	responseBody := "aaji mera kadddu hai ye  "
 	// println(responseBody)
 	bodyLength :=  len(responseBody)
+	time.Sleep(10*time.Second)
 	fmt.Fprintf(conn, "HTTP/1.1 500 OK\r\n"+
 		"Content-Type: text/plain; charset=utf-8\r\n"+
 		"Content-Length: %d\r\n"+
@@ -20,10 +26,11 @@ func testreturn(conn net.Conn , k map[string]string){
 }
 func testreturn1(conn net.Conn , id map[string]string){
 	var responseBody string
-	fmt.Sprintf(responseBody , "%q" , id["id"])
+	responseBody = fmt.Sprintf(responseBody , "%q" , id["id"])
 	println("so the name is " ,id["id"] )
 	// println(responseBody)
 	bodyLength :=  len(responseBody)
+	time.Sleep(10*time.Second)
 	fmt.Fprintf(conn, "HTTP/1.1 500 OK\r\n"+
 		"Content-Type: text/plain; charset=utf-8\r\n"+
 		"Content-Length: %d\r\n"+
@@ -34,24 +41,33 @@ func main(){
 	r := &router{}
 	r.insert("GET" , []string{"home"}, testreturn)
 	r.insert("GET" , []string{"aniket", ":id"}, testreturn1)
-
+	ctx, stop := signal.NotifyContext(context.Background() , os.Interrupt , syscall.SIGTERM)
+	defer stop()
 	var wg sync.WaitGroup
-	listener , err := net.Listen("tcp" , ":8081")
+	listener , err := net.Listen("tcp" , ":8085")
 	if err != nil {
-		log.Fatalf("there was a err, %q" , err)
+		log.Printf("there was a error inlistening %q" , err)
+		ctx.Done()
 	}
-	for{
-		conn , err := listener.Accept()
-		if err != nil {
-			log.Fatalf("there was a err, %q" , err)
-			break
+
+	go func(){
+		<-ctx.Done()
+		log.Printf("ther server is closed")
+		listener.Close()
+	}()
+
+	Loop:
+		for{
+			conn , err := listener.Accept()
+			if err != nil {
+				log.Printf("there was a err, %q" , err)
+				break Loop
+			}
+			wg.Add(1)
+			go function1(conn , &wg , r)
 		}
-		wg.Add(1)
-		go function1(conn , &wg , r)
-	}
 	wg.Wait()
 }
-
 func function1(conn net.Conn ,wg *sync.WaitGroup , r *router){
 	defer wg.Done()
 	defer conn.Close()
@@ -59,7 +75,7 @@ func function1(conn net.Conn ,wg *sync.WaitGroup , r *router){
 	reader := bufio.NewReader(conn)
 	var method string 
 	var path []string
-	for {
+	for{
 		line , err := reader.ReadString('\n')
 		if err != nil {
 			log.Printf("failed to connect: %v", err)
@@ -75,7 +91,6 @@ func function1(conn net.Conn ,wg *sync.WaitGroup , r *router){
 			words := strings.TrimSpace(line)
 			println(words)
 		}
-		
 	}
 
 	HandlerFunc , id :=  r.search(method , path)
