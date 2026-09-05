@@ -26,11 +26,11 @@ func testreturn(conn net.Conn , k map[string]string){
 }
 func testreturn1(conn net.Conn , id map[string]string){
 	var responseBody string
-	responseBody = fmt.Sprintf(responseBody , "%q" , id["id"])
+	responseBody = fmt.Sprintf("so the id = %q" , id["id"])
 	println("so the name is " ,id["id"] )
 	// println(responseBody)
 	bodyLength :=  len(responseBody)
-	time.Sleep(10*time.Second)
+	//time.Sleep(10*time.Second)
 	fmt.Fprintf(conn, "HTTP/1.1 500 OK\r\n"+
 		"Content-Type: text/plain; charset=utf-8\r\n"+
 		"Content-Length: %d\r\n"+
@@ -47,7 +47,8 @@ func main(){
 	listener , err := net.Listen("tcp" , ":8085")
 	if err != nil {
 		log.Printf("there was a error inlistening %q" , err)
-		ctx.Done()
+		stop()
+		return
 	}
 
 	go func(){
@@ -60,7 +61,7 @@ func main(){
 		for{
 			conn , err := listener.Accept()
 			if err != nil {
-				log.Printf("there was a err, %q" , err)
+				log.Printf("listening port is closed.., ")
 				break Loop
 			}
 			wg.Add(1)
@@ -141,7 +142,7 @@ func (r *router) search(method string , path []string)  (HandlerFunc , map[strin
 			parma[currentNode.parmachild.data] = w
 			currentNode = currentNode.parmachild
 		}else if currentNode.whildchild != nil {
-			array := w[1:] + "/" + strings.Join(path[i+1:] , "/")
+			array := w[0:] + "/" + strings.Join(path[i+1:] , "/")
 			parma[currentNode.whildchild.data] = array
 			currentNode = currentNode.whildchild
 		}else{
@@ -157,10 +158,14 @@ func (r *router) search(method string , path []string)  (HandlerFunc , map[strin
 
 func seprate(str string) (string , []string){
 	slices := strings.Split(str," ")
+	if len(slices) <2 {
+		return slices[0]  , nil
+	}
 	method := slices[0]
 	slice := strings.Split(slices[1] , "/")
-	slice = slice[1:]
-
+	if len(slice) > 1 {
+		slice = slice[1:]
+	}
 	return method , slice
 }
 
@@ -191,10 +196,8 @@ func (r *router) insert(method string, path []string ,procidure HandlerFunc){
 		}else if strings.HasPrefix(w , "*"){
 			if currentNode.whildchild == nil {
 				currentNode.whildchild = &node{data : w[1:]}
-				break
 			}
 			currentNode = currentNode.whildchild
-
 		}else{
 			if currentNode.children == nil {
 				currentNode.children = make(map[string]*node)
