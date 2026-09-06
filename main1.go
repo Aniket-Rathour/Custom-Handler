@@ -26,7 +26,7 @@ func testreturn(conn net.Conn , k map[string]string){
 }
 func testreturn1(conn net.Conn , id map[string]string){
 	var responseBody string
-	responseBody = fmt.Sprintf("so the id = %q" , id["id"])
+	responseBody = fmt.Sprintf("so the id = %q , and pubg = %q" , id["id"] ,id["pubg"])
 	println("so the name is " ,id["id"] )
 	// println(responseBody)
 	bodyLength :=  len(responseBody)
@@ -40,7 +40,8 @@ func testreturn1(conn net.Conn , id map[string]string){
 func main(){
 	r := &router{}
 	r.insert("GET" , []string{"home"}, testreturn)
-	r.insert("GET" , []string{"aniket", ":id"}, testreturn1)
+	r.insert("GET" , []string{"aniket", ":id",":pubg"}, testreturn1)
+	r.insert("GET" , []string{"ashish", "*id","*pubg"}, testreturn1)
 	ctx, stop := signal.NotifyContext(context.Background() , os.Interrupt , syscall.SIGTERM)
 	defer stop()
 	var wg sync.WaitGroup
@@ -142,7 +143,7 @@ func (r *router) search(method string , path []string)  (HandlerFunc , map[strin
 			parma[currentNode.parmachild.data] = w
 			currentNode = currentNode.parmachild
 		}else if currentNode.whildchild != nil {
-			array := w[0:] + "/" + strings.Join(path[i+1:] , "/")
+			array := w[0:] + "/" + strings.Join(path[i+1:],"/")
 			parma[currentNode.whildchild.data] = array
 			currentNode = currentNode.whildchild
 		}else{
@@ -163,7 +164,7 @@ func seprate(str string) (string , []string){
 	}
 	method := slices[0]
 	slice := strings.Split(slices[1] , "/")
-	if len(slice) > 1 {
+	if len(slice) > 1 || slice[0] == ""{
 		slice = slice[1:]
 	}
 	return method , slice
